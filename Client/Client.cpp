@@ -1,4 +1,5 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define RAPIDJSON_HAS_STDSTRING 1
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -6,8 +7,13 @@
 #include <WinSock2.h>
 #include <iostream>
 #include <process.h>
+#include <conio.h>
 #include "ChatPacket.h"
 #include "NetUtills.h"
+#include "C2SMovePacket.h"
+#include "PacketHeader.h"
+#include "S2CMovePacket.h"
+
 
 using namespace rapidjson;
 
@@ -26,55 +32,132 @@ unsigned WINAPI RecvThread(void* Socket)
 	SOCKET ServerSocket = *(SOCKET*)Socket;
 	while (IsRecvThreadRunning)
 	{
-		unsigned short PacketSize = 0;
+		PacketHeader Header;
 
 		//header
-		int RecvBytes = recv(ServerSocket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
+		int RecvBytes = recv(ServerSocket, (char*)&Header, sizeof(Header), MSG_WAITALL);
 		if (RecvBytes <= 0)
 		{
 			std::cout << "recv fail " << std::endl;
 			break;
 		}
 
-		PacketSize = ntohs(PacketSize);
-
+		Header.Size = ntohs(Header.Size);
 		memset(RecvBuffer, 0, sizeof(RecvBuffer));
-		//data JSON
-		RecvBytes = recv(ServerSocket, RecvBuffer, PacketSize, MSG_WAITALL);
-		if (RecvBytes <= 0)
+
+		if (Header.Type == 2)
 		{
-			std::cout << "recv fail " << std::endl;
-			break;
+			//data JSON
+			RecvBytes = recv(ServerSocket, RecvBuffer, Header.Size, MSG_WAITALL);
+			if (RecvBytes <= 0)
+			{
+				std::cout << "recv fail " << std::endl;
+				break;
+			}
+
+			ChatPacket Data;
+
+			Data.Parse(RecvBuffer);
+
+			std::cout << Data.UserID << " : " << Data.Message << " " << Data.Gold << std::endl;
 		}
+		else if (Header.Type == 1)
+		{
+			//data JSON
+			RecvBytes = recv(ServerSocket, RecvBuffer, Header.Size, MSG_WAITALL);
+			if (RecvBytes <= 0)
+			{
+				std::cout << "recv fail " << std::endl;
+				break;
+			}
 
-		ChatPacket Data;
+			S2CMovePacket Data;
 
-		Data.Parse(RecvBuffer);
+			Data.Parse(RecvBuffer);
 
-		std::cout << Data.UserID << " : " << Data.Message << " " << Data.Gold << std::endl;
+			std::cout << Data.UserNum << " (" << Data.UserX << ", "
+				<< Data.UserY << ")·Î ÀÌµ¿" << std::endl;
+
+		}
 	}
 
 	return 0;
 }
+
+std::string MakeChatPacket()
+{
+	std::cin.getline(SendBuffer, sizeof(SendBuffer));
+
+	ChatPacket Data;
+	Data.UserID = "Stobee";
+	Data.Message = SendBuffer;
+	Data.Gold = 1000;
+	std::string JSONString = Data.ToString();
+
+	return JSONString;
+
+}
+std::string MakeMovePacket(char Input)
+{
+
+	C2SMovePacket Data;
+	Input = tolower(Input);
+	Data.MovementInput = Input;
+	std::string JSONString = Data.ToString();
+
+	return JSONString;
+}
+
+bool bIsChatMode = false;
 
 unsigned WINAPI SendThread(void* Socket)
 {
 	SOCKET ServerSocket = *(SOCKET*)Socket;
 	while (IsSendThreadRunning)
 	{
-		std::cin.getline(SendBuffer, sizeof(SendBuffer));
+		std::string JSONString = "";
+		PacketHeader Header;
+		
+		
 
-		ChatPacket Data;
-		Data.UserID = "junios";
-		Data.Message = SendBuffer;
-		Data.Gold = 1000;
-		std::string JSONString = Data.ToString();
+		if (bIsChatMode)
+		{
+			JSONString = MakeChatPacket();
+			bIsChatMode = false;
+			Header.Type = (unsigned char)2;
+		}
+		else
+		{
+			char Input = _getch();
 
-		unsigned short PacketSize = (unsigned short)JSONString.length();
-		PacketSize = htons(PacketSize);
+			if (Input == 10 || Input == 13)
+			{
+				bIsChatMode = true;
+
+				continue;
+			}
+			else
+			{
+				Input = tolower(Input);
+				if (Input == 'w' || Input == 'a' || Input == 's' || Input == 'd')
+				{
+					JSONString = MakeMovePacket(Input);
+					Header.Type = (unsigned char)1;
+				}
+			}
+		}
+
+		if (JSONString.empty() || Header.Type == NULL)
+		{
+			continue;
+		}
+		
+		Header.Size = (unsigned short)JSONString.length();
+		Header.Size = htons(Header.Size);
+		memset(SendBuffer, 0, sizeof(SendBuffer));
 
 		//header
-		int SentBytes = SendAll(ServerSocket, (char*)&PacketSize, 2);
+		int SentBytes = SendAll(ServerSocket, (char*)&Header, sizeof(Header));
 		if (SentBytes <= 0)
 		{
 			std::cout << "header send fail." << std::endl;
@@ -82,7 +165,7 @@ unsigned WINAPI SendThread(void* Socket)
 		}
 
 		//Data
-		SentBytes = SendAll(ServerSocket, JSONString.c_str(), ntohs(PacketSize));
+		SentBytes = SendAll(ServerSocket, JSONString.c_str(), ntohs(Header.Size));
 		if (SentBytes <= 0)
 		{
 			std::cout << "data send fail." << std::endl;
@@ -92,6 +175,7 @@ unsigned WINAPI SendThread(void* Socket)
 	}
 	return 0;
 }
+
 
 int main()
 {
@@ -106,7 +190,7 @@ int main()
 	SOCKADDR_IN ServerSockAddr;
 	memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
 
-	ServerSockAddr.sin_addr.s_addr = inet_addr("192.168.0.95");
+	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	ServerSockAddr.sin_family = AF_INET;
 	ServerSockAddr.sin_port = htons(35000);
 

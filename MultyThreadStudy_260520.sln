@@ -1,11 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.37012.4 d17.14
+VisualStudioVersion = 17.14.37012.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Server", "Server\Server.vcxproj", "{ACB50E03-0044-46C2-BF2B-352E4D83E007}"
+	ProjectSection(ProjectDependencies) = postProject
+		{EC605B09-EAC0-45FF-9A26-10F681B82EC4} = {EC605B09-EAC0-45FF-9A26-10F681B82EC4}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Client", "Client\Client.vcxproj", "{D8ECF8D1-B682-4AF3-A90C-529100CF1A84}"
+	ProjectSection(ProjectDependencies) = postProject
+		{EC605B09-EAC0-45FF-9A26-10F681B82EC4} = {EC605B09-EAC0-45FF-9A26-10F681B82EC4}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NetCommon", "NetCommon\NetCommon.vcxproj", "{EC605B09-EAC0-45FF-9A26-10F681B82EC4}"
 EndProject

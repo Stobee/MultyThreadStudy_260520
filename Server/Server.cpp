@@ -1,11 +1,16 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define RAPIDJSON_HAS_STDSTRING 1
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include <WinSock2.h>
 #include <iostream>
+#include <unordered_map>
 #include "NetUtills.h"
+#include "S2CMovePacket.h"
+#include "C2SMovePacket.h"
+#include "PacketHeader.h"
 
 
 using namespace rapidjson;
@@ -16,6 +21,46 @@ using namespace rapidjson;
 
 // 버퍼 재사용
 char Buffer[1024] = { 0, };
+
+struct UserInfo
+{
+	SOCKET UserSock;
+	int X;
+	int Y;
+};
+
+std::unordered_map<SOCKET, UserInfo> UserMap;
+
+void AddUserMap(SOCKET UserSock, int startX, int startY) {
+	UserInfo user = { UserSock, startX, startY };
+	UserMap[UserSock] = user; // Key가 없으면 삽입, 있으면 갱신
+}
+
+void RemoveUserMap(SOCKET UserSock) {
+	UserMap.erase(UserSock);
+}
+
+void UpdateUserPositionMap(SOCKET UserSock, char Input) {
+	auto it = UserMap.find(UserSock);
+	if (it != UserMap.end()) {
+		if (Input == 'w')
+		{
+			it->second.Y++;
+		}
+		else if (Input == 's')
+		{
+			it->second.Y--;
+		}
+		else if (Input == 'd')
+		{
+			it->second.X++;
+		}
+		else if (Input == 'a')
+		{
+			it->second.X--;
+		}
+	}
+}
 
 int main()
 {
@@ -66,10 +111,10 @@ int main()
 		}
 
 		for (int i = 0; i < (int)ReadSockets.fd_count; i++)
-		{	
+		{
 			// 비교하는 내부함수
 			if (FD_ISSET(ReadSockets.fd_array[i], &CopyReadSockets))
-			{	
+			{
 				// 리슨 소켓이라면 accept함
 				if (ReadSockets.fd_array[i] == ListenSocket)
 				{
@@ -89,8 +134,9 @@ int main()
 					// 데이터 받는 작업. 
 
 					//header
-					unsigned short PacketSize = 0;
-					int RecvBytes = recv(ReadSockets.fd_array[i], (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
+					PacketHeader Header;
+					
+					int RecvBytes = recv(ReadSockets.fd_array[i], (char*)&Header, sizeof(Header), MSG_WAITALL);
 					if (RecvBytes <= 0)
 					{
 						std::cout << "header recv fail " << std::endl;
@@ -98,11 +144,11 @@ int main()
 						continue;
 					}
 
-					PacketSize = ntohs(PacketSize);
+					Header.Size = ntohs(Header.Size);
 
 					//data
 					memset(Buffer, 0, sizeof(Buffer));
-					int RecvBytes = recv(ReadSockets.fd_array[i], Buffer, sizeof(Buffer), 0);
+					RecvBytes = recv(ReadSockets.fd_array[i], Buffer, Header.Size, 0);
 					if (RecvBytes <= 0)
 					{
 						std::cout << "data recv fail " << std::endl;
@@ -117,33 +163,87 @@ int main()
 
 						getpeername(ReadSockets.fd_array[i], (SOCKADDR*)&ClientSockAddr, &ClientSockLength);
 
-						std::cout << "client(" << inet_ntoa(ClientSockAddr.sin_addr);
-						std::cout << ")" << Buffer << " send" << std::endl;
-						//모든 접속한 유저한테 전달
-
-						for (int j = 0; j < (int)ReadSockets.fd_count; ++j)
+						if (Header.Type == 2)
 						{
-							//자기꺼는 그냥 찍고 안 받으면 안되요?
-							//클라이언트에서는 처리 안함.
-							if (ReadSockets.fd_array[j] != ListenSocket)
+
+							std::cout << "client(" << inet_ntoa(ClientSockAddr.sin_addr);
+							std::cout << ")" << Buffer << " send" << std::endl;
+							//모든 접속한 유저한테 전달
+
+							for (int j = 0; j < (int)ReadSockets.fd_count; ++j)
 							{
-								PacketSize = (unsigned short)strlen(Buffer);
-								PacketSize = htons(PacketSize);
-
-								//header
-								int SentBytes = SendAll(ReadSockets.fd_array[j], (char*)&PacketSize, 2);
-								if (SentBytes <= 0)
+								//클라이언트에서는 처리 안함.
+								if (ReadSockets.fd_array[j] != ListenSocket)
 								{
-									std::cout << "header send fail." << std::endl;
-									DisconnectSocket(ReadSockets.fd_array[j], &ReadSockets);
+									Header.Type = 2;
+									Header.Size = (unsigned short)strlen(Buffer);
+									Header.Size = htons(Header.Size);
+
+									//header
+									int SentBytes = SendAll(ReadSockets.fd_array[j], (char*)&Header, sizeof(Header));
+									if (SentBytes <= 0)
+									{
+										std::cout << "header send fail." << std::endl;
+										DisconnectSocket(ReadSockets.fd_array[j], &ReadSockets);
+									}
+
+									//Data
+									SentBytes = SendAll(ReadSockets.fd_array[j], Buffer, ntohs(Header.Size));
+									if (SentBytes <= 0)
+									{
+										std::cout << "Data send fail." << std::endl;
+										DisconnectSocket(ReadSockets.fd_array[j], &ReadSockets);
+									}
 								}
+							}
+						}
+						else if (Header.Type == 1)
+						{
+							C2SMovePacket Packet;
+							Packet.Parse(Buffer);
+					
+							if (UserMap.count(ReadSockets.fd_array[i]) == 0)
+							{
+								AddUserMap(ReadSockets.fd_array[i], 0, 0);
+							}
+							
+							UpdateUserPositionMap(ReadSockets.fd_array[i], Packet.MovementInput);
+							
+							auto CurrentUser = UserMap.find(ReadSockets.fd_array[i]);
+							
+							std::cout << CurrentUser->second.UserSock << " (" << CurrentUser->second.X << ", "
+								<< CurrentUser->second.Y << ")로 이동" << std::endl;
+							S2CMovePacket Data;
+							Data.UserNum = (unsigned short)CurrentUser->second.UserSock;
+							Data.UserX = (short)CurrentUser->second.X;
+							Data.UserY = (short)CurrentUser->second.Y;
 
-								//Data
-								SentBytes = SendAll(ReadSockets.fd_array[j], Buffer, ntohs(PacketSize));
-								if (SentBytes <= 0)
+							std::string JSONString = Data.ToString();
+
+							for (int j = 0; j < (int)ReadSockets.fd_count; ++j)
+							{
+								//클라이언트에서는 처리 안함.
+								if (ReadSockets.fd_array[j] != ListenSocket)
 								{
-									std::cout << "Data send fail." << std::endl;
-									DisconnectSocket(ReadSockets.fd_array[j], &ReadSockets);
+									Header.Type = 1;
+									Header.Size = JSONString.length();
+									Header.Size = htons(Header.Size);
+
+									//header
+									int SentBytes = SendAll(ReadSockets.fd_array[j], (char*)&Header, sizeof(Header));
+									if (SentBytes <= 0)
+									{
+										std::cout << "header send fail." << std::endl;
+										DisconnectSocket(ReadSockets.fd_array[j], &ReadSockets);
+									}
+
+									//Data
+									SentBytes = SendAll(ReadSockets.fd_array[j], (char*)JSONString.c_str(), ntohs(Header.Size));
+									if (SentBytes <= 0)
+									{
+										std::cout << "Data send fail." << std::endl;
+										DisconnectSocket(ReadSockets.fd_array[j], &ReadSockets);
+									}
 								}
 							}
 						}

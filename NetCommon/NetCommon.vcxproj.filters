@@ -27,6 +27,18 @@
     <ClInclude Include="ChatPacket.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetUtills.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C2SMovePacket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="S2CMovePacket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketHeader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NetCommon.cpp">
@@ -39,6 +51,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ChatPacket.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NetUtills.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C2SMovePacket.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="S2CMovePacket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

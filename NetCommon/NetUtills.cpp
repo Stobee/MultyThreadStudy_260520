@@ -28,6 +28,6 @@ void DisconnectSocket(SOCKET DisconnectedSocket, fd_set* Sockets)
 
 	SOCKET ClosedSocket = DisconnectedSocket;
 	getpeername(ClosedSocket, (SOCKADDR*)&ClosedSockAddr, &ClosedSockAddrLength);
-	FD_CLR(DisconnectedSocket, &Sockets);
+	FD_CLR(DisconnectedSocket, Sockets);
 	closesocket(ClosedSocket);
 }

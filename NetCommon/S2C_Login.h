@@ -1,11 +1,8 @@
 #pragma once
 #include "Packet.h"
-
-class S2CMovePacket :
+class S2C_Login :
     public IPacket
-{
-public:
-    
+{public:
     void Parse(std::string InString)override;
 
     std::string ToString() override;
