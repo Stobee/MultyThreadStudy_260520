@@ -1,6 +1,12 @@
 #include "pch.h"
 #include "NetUtills.h"
 
+int RecvAll(SOCKET ReceiverSocket, char* Data, int Size)
+{
+	int RecvBytes = recv(ReceiverSocket, Data, Size, MSG_WAITALL);
+	return RecvBytes;
+}
+
 int SendAll(SOCKET ReceiverSocket, const char* Data, int Size)
 {
 	int TotalSendDataSize = 0;

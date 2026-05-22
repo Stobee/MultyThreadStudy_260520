@@ -135,6 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="C2S_Login.h" />
     <ClInclude Include="ChatPacket.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="C2SMovePacket.h" />
@@ -143,8 +144,12 @@
     <ClInclude Include="PacketHeader.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="S2CMovePacket.h" />
+    <ClInclude Include="S2C_Destroy.h" />
+    <ClInclude Include="S2C_Login.h" />
+    <ClInclude Include="S2C_Spawn.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="C2S_Login.cpp" />
     <ClCompile Include="ChatPacket.cpp" />
     <ClCompile Include="C2SMovePacket.cpp" />
     <ClCompile Include="NetCommon.cpp" />
@@ -157,6 +162,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="S2CMovePacket.cpp" />
+    <ClCompile Include="S2C_Destroy.cpp" />
+    <ClCompile Include="S2C_Login.cpp" />
+    <ClCompile Include="S2C_Spawn.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

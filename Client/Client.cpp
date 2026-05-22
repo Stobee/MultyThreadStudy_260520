@@ -198,6 +198,13 @@ int main()
 
 	std::cout << "Server Connect" << std::endl;
 
+	C2S_Login LoginData;
+	LoginData.UserID = "Stobee";
+	LoginData.HashKey = "49s9982kjdj9j";
+
+	PacketHeader LoginHeader;
+	LoginHeader.MakeHeader(static_cast<unsigned short>(LoginData.Length()), EPacketType::C2S_Login);
+
 	// 스레드 사용, nonBlocking, asynchronus
 	HANDLE ThreadHandles[2] = { 0, };
 	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, &ServerSocket, 0, 0);

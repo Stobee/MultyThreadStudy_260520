@@ -9,7 +9,7 @@ public:
 
 	virtual std::string ToString() = 0;
 
-	virtual int Length() {};
+	virtual int Length() { return 0; }
 
 
 	rapidjson::Document JSONDocument;
